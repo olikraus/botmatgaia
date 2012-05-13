@@ -1,0 +1,19 @@
+botmatGAIA-M644.name=botmatGAIA M644
+
+botmatGAIA-M644.upload.protocol=arduino
+botmatGAIA-M644.upload.maximum_size=63488
+botmatGAIA-M644.upload.speed=38400
+
+botmatGAIA-M644.bootloader.low_fuses=0xFD
+botmatGAIA-M644.bootloader.high_fuses=0xDC
+botmatGAIA-M644.bootloader.extended_fuses=0xFD
+botmatGAIA-M644.bootloader.path=atmega644p
+botmatGAIA-M644.bootloader.file=ATmegaBOOT_644P-botmat.hex
+botmatGAIA-M644.bootloader.unlock_bits=0x3F
+botmatGAIA-M644.bootloader.lock_bits=0x0F
+
+botmatGAIA-M644.build.mcu=atmega644p
+botmatGAIA-M644.build.f_cpu=8000000L
+botmatGAIA-M644.build.core=arduino:arduino
+botmatGAIA-M644.build.variant=botmat
+atmega1284p8.build.variant=botmat
