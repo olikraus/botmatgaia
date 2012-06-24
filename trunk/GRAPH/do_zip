@@ -1,0 +1,2 @@
+zip -r --exclude=*.svn* botmat_graphic.zip hardware
+zip -r --exclude=*.svn* botmat_graphic.zip libraries
