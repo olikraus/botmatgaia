@@ -1,12 +1,12 @@
 /*
 
-  m2ghdummy.c
-
-  graphics dummy (null) handler
-
-  m2tklib = Mini Interative Interface Toolkit Library
+  pff_io.h
   
-  Copyright (C) 2011  olikraus@gmail.com
+  atmega low level procedures for pff
+
+  part of m2tklib (Mini Interative Interface Toolkit Library)
+  
+  Copyright (C) 2012  olikraus@gmail.com
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,23 +23,18 @@
 
 */
 
-#include "m2.h"
-#include <string.h>
+#include <stdint.h>
 
-uint8_t m2_gh_dummy(m2_gfx_arg_p arg)
-{
-  switch(arg->msg)
-  {
-    case M2_GFX_MSG_GET_TEXT_WIDTH:
-      return strlen(arg->s);
-    case M2_GFX_MSG_GET_NUM_CHAR_WIDTH:
-    case M2_GFX_MSG_GET_CHAR_WIDTH:
-    case M2_GFX_MSG_GET_CHAR_HEIGHT:
-    case M2_GFX_MSG_GET_ICON_WIDTH:
-    case M2_GFX_MSG_GET_ICON_HEIGHT:
-      return 1;
-  }
-  return 0;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void pff_delay_us(uint16_t val);
+void pff_chip_select_high(void);
+void pff_chip_select_low(void);
+void pff_spi_init(void);
+uint8_t pff_spi_out(uint8_t data);
+
+#ifdef __cplusplus
 }
-
-
+#endif

@@ -1,0 +1,2 @@
+zip -r botmat_ascii.zip hardware
+zip -r botmat_ascii.zip libraries
