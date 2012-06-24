@@ -1,12 +1,10 @@
 /*
 
-  m2ghdummy.c
-
-  graphics dummy (null) handler
+  m2dfs.c
 
   m2tklib = Mini Interative Interface Toolkit Library
   
-  Copyright (C) 2011  olikraus@gmail.com
+  Copyright (C) 2012  olikraus@gmail.com
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,25 +19,32 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+  Code size status: 
+
 */
 
 #include "m2.h"
-#include <string.h>
 
-uint8_t m2_gh_dummy(m2_gfx_arg_p arg)
+/* use the temp object from m2draw.c */
+extern m2_nav_t m2_draw_current;
+
+static void m2_draw_sub(m2_dfs_fnptr cb)
 {
-  switch(arg->msg)
+  cb(&m2_draw_current);
+  if ( m2_nav_down(&m2_draw_current, 0) != 0 )
   {
-    case M2_GFX_MSG_GET_TEXT_WIDTH:
-      return strlen(arg->s);
-    case M2_GFX_MSG_GET_NUM_CHAR_WIDTH:
-    case M2_GFX_MSG_GET_CHAR_WIDTH:
-    case M2_GFX_MSG_GET_CHAR_HEIGHT:
-    case M2_GFX_MSG_GET_ICON_WIDTH:
-    case M2_GFX_MSG_GET_ICON_HEIGHT:
-      return 1;
+    do
+    {
+      m2_draw_sub(cb);
+    } while ( m2_nav_next(&m2_draw_current) != 0 );
+    m2_nav_up(&m2_draw_current);
   }
-  return 0;
 }
 
+void m2_nav_dfs(m2_nav_p nav, m2_dfs_fnptr cb)
+{
+  m2_draw_current.element_list[0] = nav->element_list[0];
+  m2_draw_current.depth = 1;
+  m2_draw_sub(cb);
+}
 

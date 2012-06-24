@@ -2,7 +2,7 @@
 
   botmat.pde
   
-  botmat example program
+  botmat ascii example program
 
   Copyright (C) 2012  olikraus@gmail.com
 
@@ -26,6 +26,7 @@
 #include <Wire.h>                       // required for DS1307new.h
 #include <SdFat.h>
 #include "M2tk.h"
+#include "mas.h"
 #include "utility/m2ghdoglcd.h"
 #include <string.h>
 
@@ -113,145 +114,81 @@ void info_screen_display(void)
 }
 
 /*=========================================================================*/
+/* show selected file */
+
+const char *fs_show_file_label_cb(m2_rom_void_p element) {
+  return mas_GetFilename();
+}
+
+M2_LABELFN(el_show_filename, NULL, fs_show_file_label_cb);
+M2_ROOT(el_show_file_ok, NULL, "ok", &el_top);
+M2_LIST(list_show_file) = { &el_show_filename, &el_show_file_ok };
+M2_VLIST(el_show_file_Vlist, NULL, list_show_file);
+M2_ALIGN(top_el_show_file, "-1|1W64H64", &el_show_file_Vlist);
+
+
+/*=========================================================================*/
 /* file selection dialog */
 /* limitation: not more than 250 elements per directory allowed */
 
 #define FS_EXTRA_MENUES 1
 
-/* buffer for one file name */
-char fs_name[2+12+1];   /* 2 chars for the prefix, 12 chars for the name, 1 for the terminating '\0' */
-uint8_t fs_is_dir = 0;
-
-/* cache */
-#define FS_CACHE_SIZE 2
-char fs_c_name[FS_CACHE_SIZE][2+12+1];
-uint8_t fs_c_is_dir[FS_CACHE_SIZE];
-uint8_t fs_c_idx[FS_CACHE_SIZE] = { 255, 255 };
-uint8_t fs_rr = 0;
-
-/* number of files in the current folder, 255 forces recalculation */
-uint8_t fs_file_cnt = 255;
-
 /* helper variables for the strlist element */
 uint8_t fs_m2tk_first = 0;
 uint8_t fs_m2tk_cnt = 0;
 
-void fs_update_file_cnt(void)
-{
-  if ( fs_file_cnt == 255 )
-  {
-    fs_file_cnt = 0;
-    sd.vwd()->rewind();
-    while (file.openNext(sd.vwd(), O_READ)) 
-    {
-      fs_file_cnt++;
-      if ( fs_file_cnt == 250 )
-        break;
-      file.close();
-    }
-    /*
-    if  ( fs_file_cnt > 10 )
-      fs_file_cnt = 10;
-    */
-    /* update m2 variable */
-    fs_m2tk_cnt = fs_file_cnt;
-  }  
-}
-
-uint8_t fs_get_cache_entry(uint8_t n)
-{
-  uint8_t i;
-  for( i = 0 ; i < FS_CACHE_SIZE; i++ )
-    if ( fs_c_idx[i] == n )
-    {
-      strcpy(fs_name, fs_c_name[i]);
-      fs_is_dir = fs_c_is_dir[i];
-      return i;
-    }
-  return 255;
-}
-
-void fs_put_into_cache(uint8_t n)
-{
-  strcpy(fs_c_name[fs_rr], fs_name);
-  fs_c_is_dir[fs_rr] = fs_is_dir;
-  fs_rr++;
-  if ( fs_rr >= FS_CACHE_SIZE )
-    fs_rr = 0;
-}
-
-
-
-/* get the n'th file an store it into the intermediate buffers fs_is_dir and fs_name */
-void fs_get_nth_file(uint8_t n)
-{
-  uint8_t c = 0;
-  if ( fs_get_cache_entry(n) != 255 )
-    return;
-  
-  fs_name[0] = '-';
-  fs_name[1] = '-';
-  fs_name[2] = '\0';
-  fs_is_dir = 0;
-  
-  sd.vwd()->rewind();
-  while (file.openNext(sd.vwd(), O_READ)) 
-  {
-    if ( n == c )
-    {
-      fs_name[0] = ' ';
-      fs_name[1] = ' ';
-      file.getFilename(fs_name+2);
-      fs_name[12+2] = '\0';
-      fs_is_dir = file.isDir();
-      if ( fs_is_dir )
-        fs_name[0] = '+';
-      file.close();
-      fs_put_into_cache(n);
-      break;
-    }
-    c++;
-    file.close();
-  }
-}
-
-const char *fs_strlist_getstr(uint8_t idx, uint8_t msg) 
-{
-  
-  /* update files, if required */
-  fs_update_file_cnt();
-
-  /* process message */
-  if (msg == M2_STRLIST_MSG_GET_STR) 
-  {
+/* callback procedure for the file selection dialog */
+const char *fs_strlist_getstr(uint8_t idx, uint8_t msg)  {
+  if (msg == M2_STRLIST_MSG_GET_STR)  {
+    /* Check for the extra button: Return string for this extra button */
     if ( idx == 0 )
-      return "-- Back --";
-    fs_get_nth_file(idx-FS_EXTRA_MENUES);
-    return fs_name;
-  } 
-  else if ( msg == M2_STRLIST_MSG_SELECT ) 
-  {
+      return "..";
+    /* Not the extra button: Return file/directory name */
+    mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+    return mas_GetFilename();
+  } else if ( msg == M2_STRLIST_MSG_GET_EXTENDED_STR ) {
+    /* Check for the extra button: Return icon for this extra button */
     if ( idx == 0 )
-    {
-      m2.setRoot(&el_top);      
-    }
-    else
-    {
-      fs_get_nth_file(idx);
-      if ( fs_is_dir )
-      {
+      return " ";       /* use a blank */
+    /* Not the extra button: Return file or directory icon */
+    mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+    if ( mas_IsDir() )
+      return "+";       /* folder */
+    return " ";         /* file */
+  } else if ( msg == M2_STRLIST_MSG_SELECT ) {
+    /* Check for the extra button: Execute button action */
+    if ( idx == 0 ) {
+      if ( mas_GetPath()[0] == '\0' )
+        m2_SetRoot(&el_top);      	/* go back to previous menu */
+      else {
+        mas_ChDirUp();
+        m2_SetRoot(m2_GetRoot());  /* reset menu to first element, send NEW_DIALOG and force recount */
+      }
+    /* Not the extra button: Goto subdir or return (with selected file) */
+    } else {
+      mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+      if ( mas_IsDir() ) {
+        mas_ChDir(mas_GetFilename());
+        m2_SetRoot(m2_GetRoot());  /* reset menu to first element, send NEW_DIALOG and force recount */
+      } else {
+	/* File has been selected. Here: Show the file to the user */
+        m2_SetRoot(&top_el_show_file);  
       }
     }
-  } 
-  return fs_name;
+  } else if ( msg == M2_STRLIST_MSG_NEW_DIALOG ) {
+    /* (re-) calculate number of entries, limit no of entries to 250 */
+    if ( mas_GetDirEntryCnt() < 250-FS_EXTRA_MENUES )
+      fs_m2tk_cnt = mas_GetDirEntryCnt()+FS_EXTRA_MENUES;
+    else
+      fs_m2tk_cnt = 250;
+  }
+  return NULL;
 }
 
-M2_STRLIST(el_fs_strlist, "l2w13", &fs_m2tk_first, &fs_m2tk_cnt, fs_strlist_getstr);
-//M2_SPACE(el_fs_space, "w1h1");
+M2_STRLIST(el_fs_strlist, "l2e1w13", &fs_m2tk_first, &fs_m2tk_cnt, fs_strlist_getstr);
 M2_VSB(el_fs_strlist_vsb, "l2w1r1", &fs_m2tk_first, &fs_m2tk_cnt);
 M2_LIST(list_fs_strlist) = { &el_fs_strlist, &el_fs_strlist_vsb };
 M2_HLIST(el_top_fs, NULL, list_fs_strlist);
-
 
 /*=========================================================================*/
 /* edit time dialog */
@@ -393,12 +330,13 @@ const char *el_strlist_getstr(uint8_t idx, uint8_t msg)
       pinMode(6, INPUT);
       pinMode(7, OUTPUT);
       pinMode(23, OUTPUT);
-      if (sd.init(SPI_HALF_SPEED, 23))
-      {
-        fs_file_cnt = 255;
-        fs_update_file_cnt();
-        m2.setRoot(&el_top_fs);
+      pinMode(SS, OUTPUT);	// force the hardware chip select to output
+      
+      if ( sd.init(SPI_HALF_SPEED, 23) ) {
+	mas_Init(mas_device_sdfat, (void *)&sd);
       }
+      
+        m2.setRoot(&el_top_fs);
     }
   }
   return s;
@@ -434,6 +372,7 @@ void setup()
   m2.setPin(M2_KEY_PREV, uiKeyLeftPin);
   m2.setPin(M2_KEY_DATA_UP, uiKeyUpPin);
   m2.setPin(M2_KEY_DATA_DOWN, uiKeyDownPin);
+  
 
 }
 
