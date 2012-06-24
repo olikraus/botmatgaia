@@ -26,7 +26,7 @@
 #include <Wire.h>                       // required for DS1307new.h
 #include <SdFat.h>
 #include "M2tk.h"
-#include "mas.h"
+#include "utility/mas.h"
 #include "utility/m2ghdoglcd.h"
 #include <string.h>
 
