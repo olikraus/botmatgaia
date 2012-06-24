@@ -1,10 +1,12 @@
 /*
 
-  u8g_line.h
+  u8g_state.c
   
+  backup and restore hardware state
+
   Universal 8bit Graphics Library
   
-  Copyright (c) 2012, olikraus@gmail.com
+  Copyright (c) 2011, olikraus@gmail.com
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without modification, 
@@ -31,51 +33,58 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
   ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
   
+
+  state callback: backup env U8G_STATE_MSG_BACKUP_ENV
+  device callback: DEV_MSG_INIT
+  state callback: backup u8g U8G_STATE_MSG_BACKUP_U8G
+  state callback: restore env U8G_STATE_MSG_RESTORE_ENV
+
+  state callback: backup env U8G_STATE_MSG_BACKUP_ENV
+  state callback: retore u8g U8G_STATE_MSG_RESTORE_U8G
+  DEV_MSG_PAGE_FIRST or DEV_MSG_PAGE_NEXT
+  state callback: restore env U8G_STATE_MSG_RESTORE_ENV
+
 */
 
+#include <stddef.h>
 #include "u8g.h"
 
-void u8g_DrawLine(u8g_t *u8g, u8g_uint_t x1, u8g_uint_t y1, u8g_uint_t x2, u8g_uint_t y2)
+void u8g_state_dummy_cb(uint8_t msg)
 {
-  u8g_uint_t tmp;
-  u8g_uint_t x,y;
-  u8g_uint_t dx, dy;
-  u8g_int_t err;
-  u8g_int_t ystep;
+  /* the dummy procedure does nothing */
+}
 
-  uint8_t swapxy = 0;
-  
-  /* no BBX intersection check at the moment, should be added... */
+void u8g_SetHardwareBackup(u8g_t *u8g, u8g_state_cb backup_cb)
+{
+  u8g->state_cb = backup_cb;
+  /* in most cases the init message was already sent, so this will backup the */
+  /* current u8g state */
+  backup_cb(U8G_STATE_MSG_BACKUP_U8G);
+}
 
-  if ( x1 > x2 ) dx = x1-x2; else dx = x2-x1;
-  if ( y1 > y2 ) dy = y1-y2; else dy = y2-y1;
 
-  if ( dy > dx ) 
+/*===============================================================*/
+/* AVR */
+
+#if defined(__AVR__)
+#include <avr/interrupt.h>
+static uint8_t u8g_state_avr_spi_memory[2];
+
+void u8g_backup_avr_spi(uint8_t msg)
+{
+  if ( U8G_STATE_MSG_IS_BACKUP(msg) )
   {
-    swapxy = 1;
-    tmp = dx; dx =dy; dy = tmp;
-    tmp = x1; x1 =y1; y1 = tmp;
-    tmp = x2; x2 =y2; y2 = tmp;
+    u8g_state_avr_spi_memory[U8G_STATE_MSG_GET_IDX(msg)] = SPCR;
   }
-  if ( x1 > x2 ) 
+  else
   {
-    tmp = x1; x1 =x2; x2 = tmp;
-    tmp = y1; y1 =y2; y2 = tmp;
-  }
-  err = dx >> 1;
-  if ( y2 > y1 ) ystep = 1; else ystep = -1;
-  y = y1;
-  for( x = x1; x <= x2; x++ )
-  {
-    if ( swapxy == 0 ) 
-      u8g_DrawPixel(u8g, x, y); 
-    else 
-      u8g_DrawPixel(u8g, y, x); 
-    err -= (uint8_t)dy;
-    if ( err < 0 ) 
-    {
-      y += (u8g_uint_t)ystep;
-      err += (u8g_uint_t)dx;
-    }
+    uint8_t tmp = SREG;
+    cli();
+    SPCR = 0;
+    SPCR = u8g_state_avr_spi_memory[U8G_STATE_MSG_GET_IDX(msg)];
+    SREG = tmp;
   }
 }
+
+#endif
+

@@ -62,9 +62,11 @@
 #define M2_PROGMEM PROGMEM
 #define M2_SECTION_PROGMEM __attribute__((section(".progmem.data")))
 //#define M2_AVR_OPT_ROM
+#define M2_PSTR(s) PSTR(s)
 #else
 #define M2_PROGMEM
 #define M2_SECTION_PROGMEM
+#define M2_PSTR(s) (s)
 #endif
 
 #ifdef __GNUC__
@@ -147,6 +149,8 @@ typedef void (*m2_button_fnptr)(m2_el_fnarg_p fnarg);
 typedef const char *(*m2_labelfn_fnptr)(m2_rom_void_p element);
 
 
+
+
 /* u8fn procedure */
 typedef uint8_t (*m2_u8fn_fnptr)(m2_rom_void_p element, uint8_t msg, uint8_t val);
 #define M2_U8_MSG_GET_VALUE 0
@@ -173,6 +177,8 @@ void m2_SetRootM2(m2_p m2, m2_rom_void_p element) M2_NOINLINE;								/* m2obj.c
 m2_rom_void_p m2_GetRootM2(m2_p m2) M2_NOINLINE;										/* m2obj.c */
 void m2_ClearM2(m2_p m2);
 void m2_SetGraphicsHandlerM2(m2_p m2, m2_gfx_fnptr gh);
+
+
 
 /* simplified interface */
 extern m2_t m2_global_object;
@@ -204,6 +210,8 @@ extern m2_el_fnfmt_t m2_null_element M2_SECTION_PROGMEM;					/* m2null.c */
 uint8_t m2_es_sdl(m2_p ep, uint8_t msg);		/* m2ghsdl.c: SDL Event Source */
 uint8_t m2_es_arduino(m2_p ep, uint8_t msg);			/* m2esarduino.c */
 uint8_t m2_es_arduino_ir(m2_p ep, uint8_t msg);                 /* contributed code: m2esarduinoir.c, not part of the m2tklib core files */
+uint8_t m2_es_arduino_serial(m2_p ep, uint8_t msg);	/* m2esserial.cpp */
+uint8_t m2_es_avr_u8g(m2_p ep, uint8_t msg);	/* m2esavru8g.c: Event handler for m2tklib for avr (based on u8glib) */
 
 /* event handler */
 uint8_t m2_eh_2bd(m2_p ep, uint8_t msg, uint8_t arg);		/* m2eh2bd.c 2 Button Handler with data entry mode SELECT, NEXT */
@@ -215,12 +223,11 @@ uint8_t m2_eh_6bs(m2_p ep, uint8_t msg, uint8_t arg);		/* m2eh6bs.c simplified 6
 /* graphics handler */
 uint8_t m2_gh_dummy(m2_gfx_arg_p arg);
 uint8_t m2_gh_sdl(m2_gfx_arg_p arg);					/* m2ghsdl.c: SDL Graphics Handler */
+uint8_t m2_gh_arduino_serial(m2_gfx_arg_p  arg);			/* m2ghserial.cpp */
 
 
 /*==============================================================*/
 /* Macro Definitions */
-
-#define M2_PSTR(s) s
 
 /* Define the maximum depth of  the menu tree */
 #define M2_DEPTH_MAX 7
@@ -259,7 +266,12 @@ uint8_t m2_gh_sdl(m2_gfx_arg_p arg);					/* m2ghsdl.c: SDL Graphics Handler */
 #define M2_EL_MSG_DATA_DOWN 22
 #define M2_EL_MSG_DATA_SET_U8 23
 #define M2_EL_MSG_SELECT 30
+/* new focus is sent only to elements which really get the focus */
+/* escpecially if autoskip is active, there will be not such a message */
 #define M2_EL_MSG_NEW_FOCUS 31
+/* this msg is sent by m2_nav_init (m2navinit.c), when the root element has been assigned or changed */
+#define M2_EL_MSG_NEW_DIALOG 32
+
 #define M2_EL_MSG_SHOW 40
 #if defined(M2_USE_DBG_SHOW)
 #define M2_EL_MSG_DBG_SHOW 41
@@ -289,30 +301,31 @@ uint8_t m2_gh_sdl(m2_gfx_arg_p arg);					/* m2ghsdl.c: SDL Graphics Handler */
 #define M2_GFX_MSG_GET_TEXT_WIDTH 					17
 #define M2_GFX_MSG_GET_TEXT_WIDTH_P 				18
 #define M2_GFX_MSG_GET_CHAR_WIDTH 					19	
-#define M2_GFX_MSG_GET_CHAR_HEIGHT 				20
-#define M2_GFX_MSG_GET_NORMAL_BORDER_HEIGHT 		21
-#define M2_GFX_MSG_GET_NORMAL_BORDER_WIDTH 		22
-#define M2_GFX_MSG_GET_NORMAL_BORDER_X_OFFSET 		23
-#define M2_GFX_MSG_GET_NORMAL_BORDER_Y_OFFSET 		24
-#define M2_GFX_MSG_GET_SMALL_BORDER_HEIGHT 		25
-#define M2_GFX_MSG_GET_SMALL_BORDER_WIDTH 			26
-#define M2_GFX_MSG_GET_SMALL_BORDER_X_OFFSET 		27
-#define M2_GFX_MSG_GET_SMALL_BORDER_Y_OFFSET 		28
-#define M2_GFX_MSG_GET_READONLY_BORDER_HEIGHT 		29
-#define M2_GFX_MSG_GET_READONLY_BORDER_WIDTH 		30
-#define M2_GFX_MSG_GET_READONLY_BORDER_X_OFFSET 	31
-#define M2_GFX_MSG_GET_READONLY_BORDER_Y_OFFSET 	32
-#define M2_GFX_MSG_GET_LIST_OVERLAP_HEIGHT 			33
-#define M2_GFX_MSG_GET_LIST_OVERLAP_WIDTH 			34
-#define M2_GFX_MSG_GET_ICON_HEIGHT 				35
-#define M2_GFX_MSG_GET_ICON_WIDTH 					36
-#define M2_GFX_MSG_IS_FRAME_DRAW_AT_END			37
-#define M2_GFX_MSG_SET_FONT						38
-#define M2_GFX_MSG_GET_DISPLAY_WIDTH				39
-#define M2_GFX_MSG_GET_DISPLAY_HEIGHT				40
-#define M2_GFX_MSG_LEVEL_DOWN           				41
-#define M2_GFX_MSG_LEVEL_UP                   				42
-#define M2_GFX_MSG_LEVEL_NEXT                 				43
+#define M2_GFX_MSG_GET_NUM_CHAR_WIDTH 			20	
+#define M2_GFX_MSG_GET_CHAR_HEIGHT 				21
+#define M2_GFX_MSG_GET_NORMAL_BORDER_HEIGHT 		22
+#define M2_GFX_MSG_GET_NORMAL_BORDER_WIDTH 		23
+#define M2_GFX_MSG_GET_NORMAL_BORDER_X_OFFSET 		24
+#define M2_GFX_MSG_GET_NORMAL_BORDER_Y_OFFSET 		25
+#define M2_GFX_MSG_GET_SMALL_BORDER_HEIGHT 		26
+#define M2_GFX_MSG_GET_SMALL_BORDER_WIDTH 			27
+#define M2_GFX_MSG_GET_SMALL_BORDER_X_OFFSET 		28
+#define M2_GFX_MSG_GET_SMALL_BORDER_Y_OFFSET 		29
+#define M2_GFX_MSG_GET_READONLY_BORDER_HEIGHT 		30
+#define M2_GFX_MSG_GET_READONLY_BORDER_WIDTH 		31
+#define M2_GFX_MSG_GET_READONLY_BORDER_X_OFFSET 	32
+#define M2_GFX_MSG_GET_READONLY_BORDER_Y_OFFSET 	33
+#define M2_GFX_MSG_GET_LIST_OVERLAP_HEIGHT 			34
+#define M2_GFX_MSG_GET_LIST_OVERLAP_WIDTH 			35
+#define M2_GFX_MSG_GET_ICON_HEIGHT 				36
+#define M2_GFX_MSG_GET_ICON_WIDTH 					37
+#define M2_GFX_MSG_IS_FRAME_DRAW_AT_END			38
+#define M2_GFX_MSG_SET_FONT						39
+#define M2_GFX_MSG_GET_DISPLAY_WIDTH				40
+#define M2_GFX_MSG_GET_DISPLAY_HEIGHT				41
+#define M2_GFX_MSG_LEVEL_DOWN           				42
+#define M2_GFX_MSG_LEVEL_UP                   				43
+#define M2_GFX_MSG_LEVEL_NEXT                 				44
 
 /*==============================================================*/
 /* object function */
@@ -337,6 +350,7 @@ struct _m2_el_fnarg
 /*==============================================================*/
 uint8_t m2_rom_low_level_get_byte(m2_rom_void_p ptr) M2_NOINLINE;									/* m2rom.c */
 void m2_rom_low_level_copy(void *dest, m2_rom_void_p src, uint8_t cnt) M2_NOINLINE;					/* m2rom.c */
+void m2_rom_low_level_strncpy(void *dest, m2_rom_void_p src, uint8_t cnt) M2_NOINLINE;					/* m2rom.c */
 uint8_t m2_rom_get_u8(m2_rom_void_p base, uint8_t offset) M2_NOINLINE;								/* m2rom.c */
 uint32_t m2_rom_get_u32(m2_rom_void_p base, uint8_t offset) M2_NOINLINE;							/* m2rom.c */
 m2_rom_void_p m2_rom_get_rom_ptr(m2_rom_void_p base, uint8_t offset) M2_NOINLINE;					/* m2rom.c */
@@ -373,6 +387,7 @@ typedef const char *(*m2_strlist_cb_fnptr)(uint8_t idx, uint8_t msg);
 #define M2_STRLIST_MSG_GET_STR 101
 #define M2_STRLIST_MSG_SELECT 102
 #define M2_STRLIST_MSG_GET_EXTENDED_STR 103
+#define M2_STRLIST_MSG_NEW_DIALOG 104
 
 /*==============================================================*/
 /* list of elements */
@@ -682,6 +697,32 @@ M2_EL_FN_DEF(m2_el_strlist_fn);
 #define M2_STRLIST(el,fmt,first,cnt,fnptr) m2_el_strlist_t el M2_SECTION_PROGMEM = { { { m2_el_strlist_fn, (fmt) }, (first), (cnt) }, (fnptr) }
 #define M2_EXTERN_STRLIST(el) extern m2_el_strlist_t el
 
+struct _m2_menu_entry
+{
+  const char *label;
+  m2_rom_void_p element;
+};
+typedef struct _m2_menu_entry m2_menu_entry;
+
+extern uint8_t m2_strlist_menu_first;
+extern uint8_t m2_strlist_menu_cnt;
+
+struct _m2_el_2lmenu_struct
+{
+  m2_el_slbase_t slbase;
+  m2_menu_entry *menu_entries;
+  uint8_t menu_char;
+  uint8_t expanded_char;
+  uint8_t submenu_char;
+};
+typedef struct _m2_el_2lmenu_struct m2_el_2lmenu_t;
+typedef m2_el_2lmenu_t *m2_el_2lmenu_p;
+
+M2_EL_FN_DEF(m2_el_2lmenu_fn);
+
+#define M2_2LMENU(el,fmt,first,cnt,menu,mchr,exchr,subchr) m2_el_2lmenu_t el M2_SECTION_PROGMEM = { { { m2_el_2lmenu_fn, (fmt) }, (first), (cnt) },(menu),(mchr),(exchr),(subchr) }
+#define M2_EXTERN_2LMENU(el) extern m2_el_2lmenu_t el
+
 
 struct _m2_el_infobase_struct
 {
@@ -715,6 +756,11 @@ M2_EL_FN_DEF(m2_el_info_fn);
 M2_EL_FN_DEF(m2_el_infop_fn);
 #define M2_INFOP(el,fmt,first,cnt,str,cb) m2_el_infop_t el M2_SECTION_PROGMEM = { { { { m2_el_infop_fn, (fmt) }, (first), (cnt) }, (cb)}, (str) }
 #define M2_EXTERN_INFOP(el) extern m2_el_infop_t el
+
+/* defines the buffer for the info line, this is also used by some callback procedures */
+#define M2_INFO_LINE_LEN 40
+extern char m2_el_info_line[M2_INFO_LINE_LEN];
+
 
 /*==============================================================*/
 /* m2nav....c */
@@ -793,6 +839,13 @@ uint8_t m2_nav_data_down(m2_nav_p nav) M2_NOINLINE;					/* m2navdatadn.c */
 
 
 uint8_t m2_el_parent_get_font(m2_nav_p nav) M2_NOINLINE;				/* m2elsubutl.c */
+
+
+/*==============================================================*/
+/* m2dfs.c */
+/* dfs handler (callback procedure) */
+typedef uint8_t (*m2_dfs_fnptr)(m2_nav_p nav);
+void m2_nav_dfs(m2_nav_p nav, m2_dfs_fnptr cb);		/* m2dfs.c */
 
 
 /*==============================================================*/
@@ -961,6 +1014,13 @@ uint8_t m2_el_slbase_calc_box(m2_rom_void_p el_slbase, uint8_t idx, m2_pcbox_p d
 void m2_el_slbase_show(m2_el_fnarg_p fn_arg, const char *extra_s, const char *s);				/* m2elslbase.c */
 
 /*==============================================================*/
+
+
+
+const char *m2_strlist_menu_cb(uint8_t idx, uint8_t msg);																/* m2cbslmenu.c */
+void m2_SetStrlistMenuData(m2_menu_entry *menu_data, char main_menu_char, char expanded_menu_char, char submenu_char);		/* m2cbslmenu.c */
+
+/*==============================================================*/
 uint8_t *m2_el_setval_get_val_ptr(m2_el_fnarg_p fn_arg) M2_NOINLINE;							/* m2elsetval.c */
 
 
@@ -1009,6 +1069,7 @@ void m2_gfx_go_up(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font);
 
 uint8_t m2_gfx_get_text_width(uint8_t font, const char *s);				/* used for lables and buttons */
 uint8_t m2_gfx_get_text_width_p(uint8_t font, const char *s);
+uint8_t m2_gfx_get_num_char_width(uint8_t font);
 uint8_t m2_gfx_get_char_width(uint8_t font);			
 uint8_t m2_gfx_get_char_height(uint8_t font);
 
@@ -1022,10 +1083,10 @@ uint8_t m2_gfx_add_small_border_width(uint8_t font, uint8_t width);
 uint8_t m2_gfx_add_small_border_x(uint8_t font, uint8_t x);
 uint8_t m2_gfx_add_small_border_y(uint8_t font, uint8_t y);
 
-uint8_t m2_gfx_add_readonly_border_height(uint8_t font, uint8_t height);
-uint8_t m2_gfx_add_readonly_border_width(uint8_t font, uint8_t width);
-uint8_t m2_gfx_add_readonly_border_x(uint8_t font, uint8_t x);
-uint8_t m2_gfx_add_readonly_border_y(uint8_t font, uint8_t y);
+uint8_t m2_gfx_add_readonly_border_height(uint8_t is_normal, uint8_t font, uint8_t height);
+uint8_t m2_gfx_add_readonly_border_width(uint8_t is_normal, uint8_t font, uint8_t width);
+uint8_t m2_gfx_add_readonly_border_x(uint8_t is_normal, uint8_t font, uint8_t x);
+uint8_t m2_gfx_add_readonly_border_y(uint8_t is_normal, uint8_t font, uint8_t y);
 
 uint8_t m2_gfx_get_list_overlap_height(void);
 uint8_t m2_gfx_get_list_overlap_width(void);
@@ -1058,8 +1119,8 @@ void m2_gfx_level_next(uint8_t depth);
 
 void m2_gfx_draw_text_add_normal_border_offset(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
 void m2_gfx_draw_text_add_small_border_offset(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
-void m2_gfx_draw_text_add_readonly_border_offset(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
-void m2_gfx_draw_text_p_add_readonly_border_offset(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
+void m2_gfx_draw_text_add_readonly_border_offset(uint8_t is_normal, uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
+void m2_gfx_draw_text_p_add_readonly_border_offset(uint8_t is_normal, uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t font, const char *s); /* m2gfxutl.c */
 
 void m2_gfx_draw_vertical_scroll_bar(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h, uint8_t total, uint8_t top, uint8_t visible);
 
@@ -1067,6 +1128,8 @@ void m2_gfx_draw_vertical_scroll_bar(uint8_t x0, uint8_t y0, uint8_t w, uint8_t 
 void m2_gfx_draw_icon_add_normal_border_offset(uint8_t x0, uint8_t y0, uint8_t font, uint8_t icon_number) M2_NOINLINE;	/* m2gfxutl.c */
 uint8_t m2_gfx_get_char_height_with_small_border(uint8_t font) M2_NOINLINE;											/* m2gfxutl.c */
 uint8_t m2_gfx_get_char_width_with_small_border(uint8_t font) M2_NOINLINE;											/* m2gfxutl.c */
+uint8_t m2_gfx_get_num_char_width_with_small_border(uint8_t font) M2_NOINLINE;											/* m2gfxutl.c */
+
 uint8_t m2_gfx_get_char_height_with_normal_border(uint8_t font) M2_NOINLINE;											/* m2gfxutl.c */
 uint8_t m2_gfx_get_char_width_with_normal_border(uint8_t font) M2_NOINLINE;											/* m2gfxutl.c */
 

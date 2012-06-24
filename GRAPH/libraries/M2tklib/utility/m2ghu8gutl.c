@@ -111,9 +111,11 @@ void m2_u8g_draw_frame_shadow(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h)
   
 }
 
+/* origin is low left */
 void m2_u8g_draw_box(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h)
 {
   u8g_uint_t y;
+  /* transform y to upper left */
   y = m2_u8g_height_minus_one;
   y -= y0;
   y -= h;
@@ -125,6 +127,7 @@ void m2_u8g_draw_box(uint8_t x0, uint8_t y0, uint8_t w, uint8_t h)
 
 const u8g_fntpgm_uint8_t *m2_gh_u8g_fonts[4];
 int8_t m2_gh_u8g_ref_dx[4];
+int8_t m2_gh_u8g_ref_num_dx[4];
 
 const u8g_fntpgm_uint8_t *m2_u8g_get_font(uint8_t font)
 {
@@ -136,6 +139,12 @@ int8_t m2_u8g_get_reference_delta_x(uint8_t font)
 {
   font &= 3;
   return m2_gh_u8g_ref_dx[font];
+}
+
+int8_t m2_u8g_get_reference_num_delta_x(uint8_t font)
+{
+  font &= 3;
+  return m2_gh_u8g_ref_num_dx[font];
 }
 
 
@@ -195,8 +204,8 @@ uint8_t m2_gh_u8g_base(m2_gfx_arg_p  arg)
       break;
     case M2_GFX_MSG_DRAW_TEXT_P:
       {
-	      u8g_uint_t x = arg->x;
-	      u8g_uint_t y;
+	u8g_uint_t x = arg->x;
+	u8g_uint_t y;
         
         u8g_SetColorIndex(m2_u8g, m2_u8g_current_text_color);
         u8g_SetFont(m2_u8g, m2_u8g_get_font(arg->font));
@@ -227,6 +236,9 @@ uint8_t m2_gh_u8g_base(m2_gfx_arg_p  arg)
 	      m2_gh_u8g_fonts[idx] = (const u8g_fntpgm_uint8_t *)(arg->s);
         u8g_SetFont(m2_u8g, m2_gh_u8g_fonts[idx]);
         m2_gh_u8g_ref_dx[idx] = u8g_GetGlyphDeltaX(m2_u8g, 'm');
+	m2_gh_u8g_ref_num_dx[idx] = u8g_GetGlyphDeltaX(m2_u8g, '0');
+	if ( m2_gh_u8g_ref_dx[idx] < m2_gh_u8g_ref_num_dx[idx] )
+		m2_gh_u8g_ref_dx[idx] = m2_gh_u8g_ref_num_dx[idx];
       }
       return 0;
     case M2_GFX_MSG_GET_TEXT_WIDTH:
@@ -235,6 +247,8 @@ uint8_t m2_gh_u8g_base(m2_gfx_arg_p  arg)
     case M2_GFX_MSG_GET_TEXT_WIDTH_P:
       u8g_SetFont(m2_u8g, m2_u8g_get_font(arg->font));
       return u8g_GetStrPixelWidthP(m2_u8g, (const u8g_pgm_uint8_t *)arg->s);
+    case M2_GFX_MSG_GET_NUM_CHAR_WIDTH:
+      return m2_u8g_get_reference_num_delta_x(arg->font);
     case M2_GFX_MSG_GET_CHAR_WIDTH:
       return m2_u8g_get_reference_delta_x(arg->font);
     case M2_GFX_MSG_GET_CHAR_HEIGHT:
@@ -255,7 +269,6 @@ uint8_t m2_gh_u8g_base(m2_gfx_arg_p  arg)
       m2_u8g_draw_frame(arg->x, arg->y, arg->w, arg->h);
       {
       	uint16_t h, y;
-	
        	h = m2_utl_sb_get_slider_height(arg->h-2, arg->total, arg->visible);
       	y = m2_utl_sb_get_slider_position(arg->h-2, h, arg->total, arg->visible, arg->top); 	
       	m2_u8g_draw_box(arg->x+1, arg->y+arg->h-1-h-y, arg->w-2, h);
