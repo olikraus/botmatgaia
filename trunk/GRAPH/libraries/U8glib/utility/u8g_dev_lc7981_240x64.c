@@ -1,10 +1,12 @@
 /*
 
-  u8g_dev_lc7981_160x80.c
+  u8g_dev_lc7981_240x64.c
+  
+  Tested with Nan Ya LM_J6_003_
   
   Universal 8bit Graphics Library
   
-  Copyright (c) 2011, olikraus@gmail.com
+  Copyright (c) 2012, olikraus@gmail.com
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without modification, 
@@ -36,20 +38,16 @@
 
 #include "u8g.h"
 
-#define WIDTH 160
-#define HEIGHT 80
+#define WIDTH 240
+#define HEIGHT 64
 #define PAGE_HEIGHT 8
 
 
 /*
-  code ideas: 
-  https://github.com/vsergeev/embedded-drivers/tree/master/avr-lc7981
-  data sheets:
-  http://www.lcd-module.de/eng/pdf/zubehoer/lc7981.pdf
-  http://www.lcd-module.de/pdf/grafik/w160-6.pdf
+  http://www.mark-products.com/graphics.htm#240x64%20Pixel%20Format
 */
 
-static const uint8_t u8g_dev_lc7981_160x80_init_seq[] PROGMEM = {
+static const uint8_t u8g_dev_lc7981_240x64_init_seq[] PROGMEM = {
   U8G_ESC_CS(0),             /* disable chip */
   U8G_ESC_ADR(1),           /* instruction mode */
   U8G_ESC_RST(15),           /* do reset low pulse with (15*16)+2 milliseconds (=maximum delay)*/
@@ -93,13 +91,13 @@ static const uint8_t u8g_dev_lc7981_160x80_init_seq[] PROGMEM = {
   U8G_ESC_END                /* end of sequence */
 };
 
-uint8_t u8g_dev_lc7981_160x80_fn(u8g_t *u8g, u8g_dev_t *dev, uint8_t msg, void *arg)
+uint8_t u8g_dev_lc7981_240x64_fn(u8g_t *u8g, u8g_dev_t *dev, uint8_t msg, void *arg)
 {
   switch(msg)
   {
     case U8G_DEV_MSG_INIT:
       u8g_InitCom(u8g, dev);
-      u8g_WriteEscSeqP(u8g, dev, u8g_dev_lc7981_160x80_init_seq);
+      u8g_WriteEscSeqP(u8g, dev, u8g_dev_lc7981_240x64_init_seq);
       break;
     case U8G_DEV_MSG_STOP:
       break;
@@ -142,6 +140,6 @@ uint8_t u8g_dev_lc7981_160x80_fn(u8g_t *u8g, u8g_dev_t *dev, uint8_t msg, void *
   return u8g_dev_pb8h1f_base_fn(u8g, dev, msg, arg);
 }
 
-U8G_PB_DEV(u8g_dev_lc7981_160x80_8bit, WIDTH, HEIGHT, PAGE_HEIGHT, u8g_dev_lc7981_160x80_fn, U8G_COM_PARALLEL);
+U8G_PB_DEV(u8g_dev_lc7981_240x64_8bit, WIDTH, HEIGHT, PAGE_HEIGHT, u8g_dev_lc7981_240x64_fn, U8G_COM_PARALLEL);
 
 

@@ -161,6 +161,8 @@ class U8GLIB : public Print
     u8g_uint_t getStrWidth(const char *s) { return u8g_GetStrWidth(&u8g, s); } 
     u8g_uint_t getStrWidthP(u8g_pgm_uint8_t *s) { return u8g_GetStrWidthP(&u8g, s); }
     
+    void setHardwareBackup(u8g_state_cb backup_cb) { u8g_SetHardwareBackup(&u8g, backup_cb); }
+    
 #if defined(ARDUINO) && ARDUINO >= 100
     // support for the F() macro
     
@@ -273,6 +275,16 @@ class U8GLIB_LC7981_160X80 : public U8GLIB
       { }
 };
 
+class U8GLIB_LC7981_240X64 : public U8GLIB 
+{
+  public:
+    U8GLIB_LC7981_240X64(uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7, 
+        uint8_t en, uint8_t cs1, uint8_t di, uint8_t rw = U8G_PIN_NONE, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_lc7981_240x64_8bit, d0, d1, d2, d3, d4, d5, d6, d7, en, cs1, U8G_PIN_NONE, di, rw, reset)
+      { }
+};
+
+
 class U8GLIB_DOGXL160_BW : public U8GLIB 
 {
   public:
@@ -340,6 +352,42 @@ class U8GLIB_NHD27OLED_2X_BW : public U8GLIB
       { }
 };
 
+class U8GLIB_NHD31OLED_BW : public U8GLIB 
+{
+  public:
+    U8GLIB_NHD31OLED_BW(uint8_t sck, uint8_t mosi, uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1322_nhd31oled_bw_sw_spi, sck, mosi, cs, a0, reset)
+      { }
+    U8GLIB_NHD31OLED_BW(uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1322_nhd31oled_bw_hw_spi, cs, a0, reset)
+      { }
+};
+
+class U8GLIB_NHD31OLED_2X_BW : public U8GLIB 
+{
+  public:
+    U8GLIB_NHD31OLED_2X_BW(uint8_t sck, uint8_t mosi, uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1322_nhd31oled_2x_bw_sw_spi, sck, mosi, cs, a0, reset)
+      { }
+    U8GLIB_NHD31OLED_2X_BW(uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1322_nhd31oled_2x_bw_hw_spi, cs, a0, reset)
+      { }
+};
+
+
+class U8GLIB_SSD1306_128X64 : public U8GLIB 
+{
+  public:
+    U8GLIB_SSD1306_128X64(uint8_t sck, uint8_t mosi, uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1306_128x64_sw_spi, sck, mosi, cs, a0, reset)
+      { }
+    U8GLIB_SSD1306_128X64(uint8_t cs, uint8_t a0, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_ssd1306_128x64_hw_spi, cs, a0, reset)
+      { }
+};
+
+
+
 class U8GLIB_NHD27OLED_GR : public U8GLIB 
 {
   public:
@@ -386,6 +434,17 @@ class U8GLIB_KS0108_128 : public U8GLIB
       : U8GLIB(&u8g_dev_ks0108_128x64_fast, d0, d1, d2, d3, d4, d5, d6, d7, en, cs1, cs2, di, rw, reset)
       { }
 };
+
+class U8GLIB_SBN1661_122X32 : public U8GLIB 
+{
+  public:
+    U8GLIB_SBN1661_122X32(uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3, uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7, 
+        uint8_t cs1, uint8_t cs2, uint8_t di, uint8_t rw = U8G_PIN_NONE, uint8_t reset = U8G_PIN_NONE) 
+      : U8GLIB(&u8g_dev_sbn1661_122x32, d0, d1, d2, d3, d4, d5, d6, d7, U8G_PIN_NONE, cs1, cs2, di, rw, reset)
+      { }
+};
+
+
 
 class U8GLIB_ST7687_C144MVGD: public U8GLIB 
 {

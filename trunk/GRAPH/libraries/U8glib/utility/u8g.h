@@ -65,6 +65,7 @@ extern "C" {
 /* flash memory access */
 
 #if defined(__AVR__)
+/* U8G_PROGMEM is used by the XBM example */
 #define U8G_PROGMEM U8G_SECTION(".progmem.data")
 typedef uint8_t PROGMEM u8g_pgm_uint8_t;
 typedef uint8_t u8g_fntpgm_uint8_t;
@@ -72,6 +73,7 @@ typedef uint8_t u8g_fntpgm_uint8_t;
 #define U8G_PSTR(s) ((u8g_pgm_uint8_t *)PSTR(s))
 #else
 #define U8G_PROGMEM
+#define PROGMEM
 typedef uint8_t u8g_pgm_uint8_t;
 typedef uint8_t u8g_fntpgm_uint8_t;
 #define u8g_pgm_read(adr) (*(const u8g_pgm_uint8_t *)(adr)) 
@@ -149,6 +151,8 @@ extern u8g_dev_t u8g_dev_st7920_192x32_8bit;
 
 /* LC7981 160x80 display*/
 extern u8g_dev_t u8g_dev_lc7981_160x80_8bit;
+/* LC7981 240x64 display*/
+extern u8g_dev_t u8g_dev_lc7981_240x64_8bit;
 
 /* Display: EA DOGXL160, Size: 160x104 monochrom & gray level */
 extern u8g_dev_t u8g_dev_uc1610_dogxl160_bw_sw_spi;
@@ -182,9 +186,22 @@ extern u8g_dev_t u8g_dev_ssd1325_nhd27oled_2x_bw_hw_spi;
 extern u8g_dev_t u8g_dev_ssd1325_nhd27oled_2x_gr_sw_spi;
 extern u8g_dev_t u8g_dev_ssd1325_nhd27oled_2x_gr_hw_spi;
 
+/* NHD-3.12-25664 OLED Display with SSD1322 Controller */
+extern u8g_dev_t u8g_dev_ssd1322_nhd31oled_bw_sw_spi;
+extern u8g_dev_t u8g_dev_ssd1322_nhd31oled_bw_hw_spi;
+extern u8g_dev_t u8g_dev_ssd1322_nhd31oled_2x_bw_sw_spi;
+extern u8g_dev_t u8g_dev_ssd1322_nhd31oled_2x_bw_hw_spi;
+
+/* OLED 128x64 Display with SSD1306 Controller */
+extern u8g_dev_t u8g_dev_ssd1306_128x64_sw_spi;
+extern u8g_dev_t u8g_dev_ssd1306_128x64_hw_spi;
+
 /* experimental 65K TFT with st7687 controller */
 extern u8g_dev_t u8g_dev_st7687_c144mvgd_sw_spi;
 extern u8g_dev_t u8g_dev_st7687_c144mvgd_8bit;
+
+/* SBN1661/SED1520 display with 122x32 */
+extern u8g_dev_t u8g_dev_sbn1661_122x32;
 
 /* ILI9325D based TFT */
 extern u8g_dev_t u8g_dev_ili9325d_320x240_8bit;
@@ -276,6 +293,7 @@ uint8_t u8g_com_arduino_st7920_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, 
 uint8_t u8g_com_arduino_parallel_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr);           /* u8g_com_arduino_parallel.c */
 uint8_t u8g_com_arduino_fast_parallel_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr);      /* u8g_com_arduino_fast_parallel.c */
 uint8_t u8g_com_arduino_port_d_wr_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr);       /* u8g_com_arduino_port_d_wr.c */
+uint8_t u8g_com_arduino_no_en_parallel_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr);	/* u8g_com_arduino_no_en_parallel.c */		
 
 
 uint8_t u8g_com_atmega_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr);      /* u8g_com_atmega_hw_spi.c */
@@ -358,7 +376,7 @@ void u8g_SetResetHigh(u8g_t *u8g, u8g_dev_t *dev);
 void u8g_SetAddress(u8g_t *u8g, u8g_dev_t *dev, uint8_t address);
 uint8_t u8g_WriteByte(u8g_t *u8g, u8g_dev_t *dev, uint8_t val);
 uint8_t u8g_WriteSequence(u8g_t *u8g, u8g_dev_t *dev, uint8_t cnt, uint8_t *seq);
-uint8_t u8g_WriteSequenceP(u8g_t *u8g, u8g_dev_t *dev, uint8_t cnt, u8g_pgm_uint8_t *seq);
+uint8_t u8g_WriteSequenceP(u8g_t *u8g, u8g_dev_t *dev, uint8_t cnt, const uint8_t *seq);
 
 #define U8G_ESC_DLY(x) 255, ((x) & 0x7f)
 #define U8G_ESC_CS(x) 255, (0xd0 | ((x)&0x0f))
@@ -366,7 +384,8 @@ uint8_t u8g_WriteSequenceP(u8g_t *u8g, u8g_dev_t *dev, uint8_t cnt, u8g_pgm_uint
 #define U8G_ESC_RST(x) 255, (0xc0 | ((x)&0x0f))
 #define U8G_ESC_END 255, 254
 #define U8G_ESC_255 255, 255
-uint8_t u8g_WriteEscSeqP(u8g_t *u8g, u8g_dev_t *dev, u8g_pgm_uint8_t *esc_seq);
+//uint8_t u8g_WriteEscSeqP(u8g_t *u8g, u8g_dev_t *dev, u8g_pgm_uint8_t *esc_seq);
+uint8_t u8g_WriteEscSeqP(u8g_t *u8g, u8g_dev_t *dev, const uint8_t *esc_seq);
 
 /*===============================================================*/
 /* u8g_arduino_common.c */
@@ -375,11 +394,18 @@ void u8g_com_arduino_assign_pin_output_high(u8g_t *u8g);
 
 /*===============================================================*/
 /* u8g_com_io.c */
+
+/* create internal number from port and pin */
 uint8_t u8g_Pin(uint8_t port, uint8_t bit);
 #define PN(port,bit) u8g_Pin(port,bit)
+
+/* low level procedures */
 void u8g_SetPinOutput(uint8_t internal_pin_number);
 void u8g_SetPinLevel(uint8_t internal_pin_number, uint8_t level);
+void u8g_SetPinInput(uint8_t internal_pin_number);
+uint8_t u8g_GetPinLevel(uint8_t internal_pin_number);
 
+/* u8g level procedures, expect U8G_PI_xxx macro */
 void u8g_SetPIOutput(u8g_t *u8g, uint8_t pi);
 void u8g_SetPILevel(u8g_t *u8g, uint8_t pi, uint8_t level);
 
@@ -477,6 +503,8 @@ typedef void (*u8g_draw_cursor_fn)(u8g_t *u8g);
 /* vertical reference point calculation callback */
 typedef u8g_uint_t (*u8g_font_calc_vref_fnptr)(u8g_t *u8g);
 
+/* state backup and restore procedure */
+typedef void (*u8g_state_cb)(uint8_t msg);
 
 
 /* PI = Pin Index */
@@ -495,6 +523,7 @@ typedef u8g_uint_t (*u8g_font_calc_vref_fnptr)(u8g_t *u8g);
 
 /* enable / clock signal */
 #define U8G_PI_EN 4
+#define U8G_PI_CS_STATE 4
 #define U8G_PI_SCK 4
 
 
@@ -556,6 +585,8 @@ struct _u8g_t
   /* uint8_t color_index; */
 
   uint8_t pin_list[U8G_PIN_LIST_LEN];
+  
+  u8g_state_cb state_cb;
 };
 
 #define u8g_GetFontAscent(u8g) ((u8g)->font_ref_ascent)
@@ -608,6 +639,28 @@ void u8g_SetDefaultMidColor(u8g_t *u8g);
   U8G_MODE_GET_BITS_PER_PIXEL(u8g_GetMode(u8g))
   U8G_MODE_IS_COLOR(u8g_GetMode(u8g)) 
 */
+
+/* u8g_state.c */
+#define U8G_STATE_ENV_IDX 0
+#define U8G_STATE_U8G_IDX 1
+#define U8G_STATE_RESTORE 0
+#define U8G_STATE_BACKUP 1
+#define U8G_STATE_MSG_COMPOSE(cmd,idx) (((cmd)<<1) | (idx))
+
+#define U8G_STATE_MSG_RESTORE_ENV U8G_STATE_MSG_COMPOSE(U8G_STATE_RESTORE,U8G_STATE_ENV_IDX)
+#define U8G_STATE_MSG_BACKUP_ENV U8G_STATE_MSG_COMPOSE(U8G_STATE_BACKUP,U8G_STATE_ENV_IDX)
+#define U8G_STATE_MSG_RESTORE_U8G U8G_STATE_MSG_COMPOSE(U8G_STATE_RESTORE,U8G_STATE_U8G_IDX)
+#define U8G_STATE_MSG_BACKUP_U8G U8G_STATE_MSG_COMPOSE(U8G_STATE_BACKUP,U8G_STATE_U8G_IDX)
+
+#define U8G_STATE_MSG_GET_IDX(msg) ((msg)&1)
+#define U8G_STATE_MSG_IS_BACKUP(msg) ((msg)&2)
+
+
+
+void u8g_state_dummy_cb(uint8_t msg);
+void u8g_backup_avr_spi(uint8_t msg);		/* backup SPI state on atmel avr controller */
+
+void u8g_SetHardwareBackup(u8g_t *u8g, u8g_state_cb backup_cb);
 
 
 /* u8g_dev_rot.c */

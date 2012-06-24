@@ -18,7 +18,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  
+    
 */
 
 #include "U8glib.h"
@@ -28,11 +28,17 @@
 #include "M2tk.h"
 #include "utility/m2ghu8g.h"
 #include <string.h>
+#include "utility/mas.h"
+//#include "pff.h"
 
 #define DEFAULT_FONT u8g_font_6x13
 #define ICON_FONT u8g_font_m2icon_9
-//#define ICON_FONT u8g_font_6x13
 #define BIG_FONT u8g_font_fub20r
+
+SdFat sdfat;
+
+//FATFS pff_fs;
+
 
 /*=========================================================================*/
 /* u8g object definition for botmat graphic */
@@ -40,9 +46,6 @@
 //U8GLIB_DOGM128 u8g(7, 5, 1, 2);                    // SPI Com: SCK = 7, MOSI = 5, CS = 1, A0 = 2
 U8GLIB_DOGM128 u8g(1, 2);                    // HW SPI CS = 1, A0 = 2
 
-/* object for the SdFat library */
-SdFat sd;
-SdFile file;
 
 /*=========================================================================*/
 /* pin numbers of the keypad */
@@ -60,6 +63,9 @@ extern M2tk m2;
 M2_EXTERN_HLIST(el_top);
 
 /*=========================================================================*/
+uint8_t sd_card_status = 0;
+
+/*=========================================================================*/
 /* 
   info screens 
   0: millis()
@@ -72,8 +78,6 @@ uint8_t info_screen_state = 0;
 
 void info_screen_display(void)
 {
-  //uint8_t backup_SPCR = SPCR;
-  //SPCR = 0;
   if ( info_screen_state == 0 )
   {
     u8g.setFont(BIG_FONT);
@@ -115,9 +119,27 @@ void info_screen_display(void)
     u8g.print(m2_utl_u8d(RTC.year-2000,2));
     
   }
-  //SPCR = backup_SPCR;
-
+  else if ( info_screen_state == 3 )
+    {
+       u8g.setFont(DEFAULT_FONT);
+       u8g.setPrintPos(0,25);
+       u8g.print("sd status:");
+       u8g.print(sd_card_status);
+    }
 }
+
+/*=========================================================================*/
+/* show selected file */
+
+const char *fs_show_file_label_cb(m2_rom_void_p element) {
+  return mas_GetFilename();
+}
+
+M2_LABELFN(el_show_filename, NULL, fs_show_file_label_cb);
+M2_ROOT(el_show_file_ok, NULL, "ok", &el_top);
+M2_LIST(list_show_file) = { &el_show_filename, &el_show_file_ok };
+M2_VLIST(el_show_file_Vlist, NULL, list_show_file);
+M2_ALIGN(top_el_show_file, "-1|1W64H64", &el_show_file_Vlist);
 
 /*=========================================================================*/
 /* file selection dialog */
@@ -125,124 +147,39 @@ void info_screen_display(void)
 
 #define FS_EXTRA_MENUES 1
 
-/* buffer for one file name */
-char fs_name[2+12+1];   /* 2 chars for the prefix, 12 chars for the name, 1 for the terminating '\0' */
-uint8_t fs_is_dir = 0;
-
-/* cache */
-#define FS_CACHE_SIZE 6
-char fs_c_name[FS_CACHE_SIZE][2+12+1];
-uint8_t fs_c_is_dir[FS_CACHE_SIZE];
-uint8_t fs_c_idx[FS_CACHE_SIZE] = { 255, 255 };
-uint8_t fs_rr = 0;
-
-/* number of files in the current folder, 255 forces recalculation */
-uint8_t fs_file_cnt = 255;
-
 /* helper variables for the strlist element */
 uint8_t fs_m2tk_first = 0;
 uint8_t fs_m2tk_cnt = 0;
 
-void fs_update_file_cnt(void)
+
+void fs_set_cnt(void)
 {
-  if ( fs_file_cnt == 255 )
-  {
-    fs_file_cnt = 0;
-    sd.vwd()->rewind();
-    while (file.openNext(sd.vwd(), O_READ)) 
-    {
-      fs_file_cnt++;
-      if ( fs_file_cnt == 250 )
-        break;
-      file.close();
-    }
-    /*
-    if  ( fs_file_cnt > 10 )
-      fs_file_cnt = 10;
-    */
-    /* update m2 variable */
-    fs_m2tk_cnt = fs_file_cnt;
-  }  
-}
-
-uint8_t fs_get_cache_entry(uint8_t n)
-{
-  uint8_t i;
-  for( i = 0 ; i < FS_CACHE_SIZE; i++ )
-    if ( fs_c_idx[i] == n )
-    {
-      strcpy(fs_name, fs_c_name[i]);
-      fs_is_dir = fs_c_is_dir[i];
-      return i;
-    }
-  return 255;
-}
-
-void fs_put_into_cache(uint8_t n)
-{
-  strcpy(fs_c_name[fs_rr], fs_name);
-  fs_c_is_dir[fs_rr] = fs_is_dir;
-  fs_c_idx[fs_rr] = n;
-  fs_rr++;
-  if ( fs_rr >= FS_CACHE_SIZE )
-    fs_rr = 0;
-}
-
-
-
-/* get the n'th file an store it into the intermediate buffers fs_is_dir and fs_name */
-void fs_get_nth_file(uint8_t n)
-{
-  uint8_t c = 0;
-  if ( fs_get_cache_entry(n) != 255 )
-    return;
-  
-  //fs_name[0] = '-';
-  //fs_name[1] = '-';
-  //fs_name[2] = '\0';
-  fs_is_dir = 0;
-  
-  sd.vwd()->rewind();
-  while (file.openNext(sd.vwd(), O_READ)) 
-  {
-    if ( n == c )
-    {
-      //fs_name[0] = ' ';
-      //fs_name[1] = ' ';
-      file.getFilename(fs_name);
-      fs_name[12] = '\0';
-      fs_is_dir = file.isDir();
-      //if ( fs_is_dir )
-      //  fs_name[0] = '+';
-      file.close();
-      fs_put_into_cache(n);
-      break;
-    }
-    c++;
-    file.close();
-  }
+  uint16_t cnt;
+  cnt = mas_GetDirEntryCnt();
+  if ( cnt+FS_EXTRA_MENUES < 255 )
+    fs_m2tk_cnt = cnt+FS_EXTRA_MENUES;
+  else
+    fs_m2tk_cnt = 255;
 }
 
 const char *fs_strlist_getstr(uint8_t idx, uint8_t msg) 
 {
-  
-  /* update files, if required */
-  fs_update_file_cnt();
-
   /* process message */
   if (msg == M2_STRLIST_MSG_GET_STR) 
   {
     if ( idx == 0 )
+   {
       return "Back";
-    fs_get_nth_file(idx-FS_EXTRA_MENUES);
-    return fs_name;
+   }
+    mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+    return mas_entry_name;
   } 
   else if ( msg == M2_STRLIST_MSG_GET_EXTENDED_STR )
   {
     if ( idx == 0 )
       return "a";       // leave menu
-    fs_get_nth_file(idx-FS_EXTRA_MENUES);
-    if ( fs_is_dir )
+    mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+    if ( mas_entry_is_dir )
       return "A";       // folder icon
     return "B";         // file icon
   }
@@ -250,24 +187,42 @@ const char *fs_strlist_getstr(uint8_t idx, uint8_t msg)
   {
     if ( idx == 0 )
     {
-      m2.setRoot(&el_top);      
+      if ( mas_pwd[0] == '\0' )
+        m2_SetRoot(&el_top);
+      else
+      {
+        mas_ChDirUp();
+        fs_set_cnt();
+        m2_SetRoot(m2_GetRoot());  // reset menu to first element
+      }
     }
     else
     {
-      fs_get_nth_file(idx);
-      if ( fs_is_dir )
+      mas_GetDirEntry(idx - FS_EXTRA_MENUES);
+      if ( mas_entry_is_dir )
       {
+        mas_ChDir(mas_entry_name);
+        fs_set_cnt();
+        m2_SetRoot(m2_GetRoot());  // reset menu to first element
+      } else {
+	/* File has been selected. Here: Show the file to the user */
+        m2_SetRoot(&top_el_show_file);  
       }
     }
   } 
-  return fs_name;
+  return "";
 }
+
+
+
+
 
 M2_STRLIST(el_fs_strlist, "l4F3e15W47", &fs_m2tk_first, &fs_m2tk_cnt, fs_strlist_getstr);
 //M2_SPACE(el_fs_space, "w1h1");
 M2_VSB(el_fs_strlist_vsb, "l4W2r1", &fs_m2tk_first, &fs_m2tk_cnt);
 M2_LIST(list_fs_strlist) = { &el_fs_strlist, &el_fs_strlist_vsb };
 M2_HLIST(el_top_fs, NULL, list_fs_strlist);
+
 
 
 /*=========================================================================*/
@@ -377,10 +332,12 @@ const char *el_strlist_getstr(uint8_t idx, uint8_t msg)
   else if ( idx == 2 )
     s = "show time";
   else if ( idx == 3 )
-    s = "set time";
+    s = "show status";
   else if ( idx == 4 )
-    s = "set date";
+    s = "set time";
   else if ( idx == 5 )
+    s = "set date";
+  else if ( idx == 6 )
     s = "file select";
   if (msg == M2_STRLIST_MSG_GET_STR) 
   {
@@ -388,41 +345,32 @@ const char *el_strlist_getstr(uint8_t idx, uint8_t msg)
   } 
   else if ( msg == M2_STRLIST_MSG_SELECT ) 
   {
-    if ( idx <= 2 )
+    if ( idx <= 3 )
     {
       info_screen_state = idx;   
       m2.setRoot(&m2_null_element);      
     }
-    if ( idx == 3 )
+    if ( idx == 4 )
     {
       td_get_from_RTC();
       m2.setRoot(&el_top_td);      
     }
-    if ( idx == 4 )
+    if ( idx == 5 )
     {
       dt_get_from_RTC();
       m2.setRoot(&el_top_dt);
     }
-    if ( idx == 5 )
+    if ( idx == 6 )
     {
-      pinMode(4, OUTPUT);
-      pinMode(5, OUTPUT);
-      pinMode(6, INPUT);
-      pinMode(7, OUTPUT);
-      pinMode(23, OUTPUT);
-      if (sd.init(SPI_HALF_SPEED, 23))
-      {
-        fs_file_cnt = 255;
-        fs_update_file_cnt();
-        m2.setRoot(&el_top_fs);
-      }
+      fs_set_cnt();
+      m2.setRoot(&el_top_fs);
     }
   }
   return s;
 }
 
 uint8_t el_strlist_first = 0;
-uint8_t el_strlist_cnt = 6;
+uint8_t el_strlist_cnt = 7;
 
 M2_STRLIST(el_strlist, "l4W55", &el_strlist_first, &el_strlist_cnt, el_strlist_getstr);
 //M2_SPACE(el_space, "w1h1");
@@ -474,6 +422,28 @@ void setup()
   m2.setPin(M2_KEY_DATA_UP, uiKeyUpPin);
   m2.setPin(M2_KEY_DATA_DOWN, uiKeyDownPin);
 
+  // sd card setup
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, INPUT);
+  pinMode(7, OUTPUT);		
+  pinMode(23, OUTPUT);
+  
+  sd_card_status = 0;
+  pinMode(SS, OUTPUT);	// force the hardware chip select to output
+  if ( sdfat.init(SPI_HALF_SPEED, 23) ) {
+    sd_card_status = 1;
+    mas_Init(mas_device_sdfat, (void *)&sdfat);
+  }
+  
+  //sd_card_status = 0;
+  //if ( pf_mount(&pff_fs) == FR_OK ) {
+  //  sd_card_status = 1;
+  //  mas_Init(mas_device_pff, &pff_fs);
+  //}
+  
+  
+  //mas_Init(mas_device_sim, NULL);
 }
 
 void loop() 
