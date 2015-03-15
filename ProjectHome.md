@@ -1,0 +1,1 @@
+botmatGAIA is an OpenHardware projekt and an software extension for arduino.
